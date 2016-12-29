@@ -62,6 +62,7 @@ static void _u0_putc ( char c )
     U0F = c;
 }
 
+
 //
 //******************************************************************************************
 // Forward declaration of methods                                                          *
@@ -141,6 +142,7 @@ DNSServer       dnsd;                                                           
 MDNSResponder   mdns;
 
 AsyncWebServer  httpd ( 80 );                                                   // Instance of embedded webserver
+//AsyncWebServer  httpsd ( 443 );
 AsyncWebSocket  ws ( "/ws" );                                                   // access at ws://[esp ip]/ws
 _ws_client      ws_client[MAX_WS_CLIENT];                                       // State Machine for WebSocket Client;
 
@@ -189,7 +191,7 @@ String encryptionTypes ( int which )
 //***************************************************************************
 //                            D B G P R I N T                               *
 //***************************************************************************
-void dbg_printf ( const char *format, ... )
+void ICACHE_FLASH_ATTR dbg_printf ( const char *format, ... )
 {
     static char sbuf[1400];                                                     // For debug lines
     va_list varArgs;                                                            // For variable number of params
@@ -210,7 +212,7 @@ void dbg_printf ( const char *format, ... )
 //***************************************************************************
 //                    F O R M A T  B Y T E S                                *
 //***************************************************************************
-String formatBytes ( size_t bytes )
+String ICACHE_FLASH_ATTR formatBytes ( size_t bytes )
 {
     if ( bytes < 1024 )
     {
@@ -233,14 +235,14 @@ String formatBytes ( size_t bytes )
 //***************************************************************************
 //                    P I E Z O   B E E P                                   *
 //***************************************************************************
-void beep ( int delayms )
+void ICACHE_FLASH_ATTR beep ( int delayms )
 {
     digitalWrite ( PIEZO_PIN, HIGH );                                           // Turn PIEZO on
     delay ( delayms );                                                          // wait for a delayms ms
     digitalWrite ( PIEZO_PIN, LOW );                                            // Turn PIEZO off
 }
 
-void beepC ( int delayms )
+void ICACHE_FLASH_ATTR beepC ( int delayms )
 {
     for ( int c = 0; c < 448; c++ )
     {
@@ -261,7 +263,7 @@ void beepC ( int delayms )
     }
 }
 
-void beep_rr ()
+void ICACHE_FLASH_ATTR beep_rr ()
 {
     // We'll set up an array with the notes we want to play
     // change these values to make different songs!
@@ -314,7 +316,7 @@ void beep_rr ()
     digitalWrite ( LED_BUILTIN, HIGH );
 }
 
-int frequency ( char note )
+int ICACHE_FLASH_ATTR frequency ( char note )
 {
     // This function takes a note character (a-g), and returns the
     // corresponding frequency in Hz for the tone() function.
@@ -351,7 +353,7 @@ int frequency ( char note )
 //***************************************************************************
 //                    S E T U P                                             *
 //***************************************************************************
-void setup ( void )
+void ICACHE_FLASH_ATTR setup ( void )
 {
     uint8_t     mac[6];
 
@@ -435,7 +437,7 @@ void setup ( void )
     dbg_printf ( "\nReady!\n--------------------" );
 }
 
-int setupAP ( int chan_selected )
+int ICACHE_FLASH_ATTR setupAP ( int chan_selected )
 {
     char no_pass[] = "\0";
 
@@ -456,7 +458,7 @@ int setupAP ( int chan_selected )
 }
 
 
-void setupEEPROM()
+void ICACHE_FLASH_ATTR setupEEPROM()
 {
     dbg_printf ( "EEPROM - Checking" );
     EEPROM.begin ( 512 );
@@ -464,7 +466,7 @@ void setupEEPROM()
     dbg_printf ( "" );
 }
 
-void setupSPIFFS()
+void ICACHE_FLASH_ATTR setupSPIFFS()
 {
     FSInfo      fs_info;                                                        // Info about SPIFFS
     Dir         dir;                                                            // Directory struct for SPIFFS
@@ -500,7 +502,7 @@ void setupSPIFFS()
                );
 }
 
-void setupDNSServer()
+void ICACHE_FLASH_ATTR setupDNSServer()
 {
     // Setup DNS Server
     // if DNS Server is started with "*" for domain name,
@@ -523,12 +525,12 @@ void setupDNSServer()
     {
         dbg_printf ( "DNS Override [%d]: %s -> " IPSTR, remoteIP[3], domain, IP2STR ( overrideIP ) );
     } );
-    dnsd.setErrorReplyCode ( DNSReplyCode::NoError );
-    dnsd.setTTL(0);
+    //dnsd.setErrorReplyCode ( DNSReplyCode::NoError );
+    //dnsd.setTTL(0);
     dnsd.start ( 53, "*", ip );
 }
 
-void setupHTTPServer()
+void ICACHE_FLASH_ATTR setupHTTPServer()
 {
     // Web Server Document Setup
     dbg_printf ( "Starting HTTP Captive Portal" );
@@ -602,11 +604,33 @@ void setupHTTPServer()
     dbg_printf ( "Starting Websocket Console" );
     ws.onEvent ( onEvent );
     httpd.addHandler ( &ws );
-
     httpd.begin();
+
+/*
+    // Setup SSL
+    httpsd.onNotFound ( onRequest );
+    httpsd.onSslFileRequest([](void * arg, const char *filename, uint8_t **buf) -> int {
+        Serial.printf("SSL File: %s\n", filename);
+        File file = SPIFFS.open(filename, "r");
+        if(file){
+            size_t size = file.size();
+            uint8_t * nbuf = (uint8_t*)malloc(size);
+            if(nbuf){
+                size = file.read(nbuf, size);
+                file.close();
+                *buf = nbuf;
+                return size;
+            }
+            file.close();
+        }
+        *buf = 0;
+        return 0;
+    }, NULL);
+    httpsd.beginSecure("/server.cer", "/server.key", NULL);
+*/
 }
 
-void setupOTAServer()
+void ICACHE_FLASH_ATTR setupOTAServer()
 {
     dbg_printf ( "Starting OTA Update Server" );
 
@@ -654,7 +678,7 @@ void setupOTAServer()
     ArduinoOTA.begin();
 }
 
-int scanWiFi ()
+int ICACHE_FLASH_ATTR scanWiFi ()
 {
     int channels[11];
     std::fill_n ( channels, 11, 0 );
@@ -684,6 +708,7 @@ int scanWiFi ()
 
         channels[ chan_scan ]++;
     }
+    WiFi.scanDelete();
 
     // Find least used channel
     int lowest_count = 10000;
@@ -711,7 +736,7 @@ int scanWiFi ()
     return chan_selected;
 }
 
-void readFile( String file )
+void ICACHE_FLASH_ATTR readFile( String file )
 {
     File f = SPIFFS.open(file, "r");
     if (!f) {
@@ -728,7 +753,7 @@ void readFile( String file )
     }
 }
 
-String getSystemInformation()
+String ICACHE_FLASH_ATTR getSystemInformation()
 {
     String json;
     StaticJsonBuffer<512> jsonBuffer;
@@ -770,7 +795,7 @@ String getSystemInformation()
     return json;
 }
 
-String getApplicationSettings()
+String ICACHE_FLASH_ATTR getApplicationSettings()
 {
     String json;
     StaticJsonBuffer<512> jsonBuffer;
@@ -792,14 +817,14 @@ String getApplicationSettings()
     return json;
 }
 
-void onTimer ()
+void ICACHE_FLASH_ATTR onTimer ()
 {
     dbg_printf ( "Auto WiFi scan initiated!" );
     chan_selected = 0;
     state = statemachine::ap_change;
 }
 
-void eepromLoad()
+void ICACHE_FLASH_ATTR eepromLoad()
 {
     String json;
     StaticJsonBuffer<512> jsonBuffer;
@@ -850,7 +875,7 @@ void eepromLoad()
     }
 }
 
-void eepromSave()
+void ICACHE_FLASH_ATTR eepromSave()
 {
     StaticJsonBuffer<512> jsonBuffer;
     JsonObject &root = jsonBuffer.createObject();
@@ -885,7 +910,7 @@ void eepromSave()
     Serial.println();
 }
 
-void eepromInitialize()
+void ICACHE_FLASH_ATTR eepromInitialize()
 {
     dbg_printf ( "EEPROM - Initializing" );
 
@@ -897,7 +922,7 @@ void eepromInitialize()
     EEPROM.commit();
 }
 
-String getEEPROM()
+String ICACHE_FLASH_ATTR getEEPROM()
 {
     String json;
 
@@ -918,7 +943,7 @@ String getEEPROM()
 //***************************************************************************
 // Main program loop.                                                       *
 //***************************************************************************
-void loop ( void )
+void ICACHE_FLASH_ATTR loop ( void )
 {
     dnsd.processNextRequest();
     ArduinoOTA.handle();  // Handle remote Wifi Updates
@@ -957,7 +982,7 @@ void loop ( void )
 //***************************************************************************
 // HTTPD onRequest                                                          *
 //***************************************************************************
-void onRequest ( AsyncWebServerRequest *request )
+void ICACHE_FLASH_ATTR onRequest ( AsyncWebServerRequest *request )
 {
     digitalWrite ( LED_BUILTIN, LOW );                                          // Turn the LED on by making the voltage LOW
 
@@ -978,6 +1003,17 @@ void onRequest ( AsyncWebServerRequest *request )
         response->addHeader("Pragma","no-cache");
         response->addHeader ("Location", "http://10.10.10.1/index.htm" );
         request->send(response);
+
+/*        AsyncWebServerResponse *response = request->beginResponse(
+            511,
+            "text/html",
+            "<html><head><meta http-equiv='refresh' content='0; url=http://10.10.10.1/index.htm'></head></html>"
+        );
+        //response->addHeader("Cache-Control","no-cache");
+        //response->addHeader("Pragma","no-cache");
+        //response->addHeader ("Location", "http://10.10.10.1/index.htm" );
+        request->send(response);
+*/
     }
     else
     {
@@ -1000,7 +1036,7 @@ void onRequest ( AsyncWebServerRequest *request )
 //***************************************************************************
 // Manage routing of websocket events                                       *
 //***************************************************************************
-void onEvent ( AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len )
+void ICACHE_FLASH_ATTR onEvent ( AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len )
 {
     if ( type == WS_EVT_CONNECT )
     {
@@ -1116,7 +1152,7 @@ void onEvent ( AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 //***************************************************************************
 // translate and execute command                                            *
 //***************************************************************************
-void execCommand ( AsyncWebSocketClient *client, char *msg )
+void ICACHE_FLASH_ATTR execCommand ( AsyncWebSocketClient *client, char *msg )
 {
     bool CHANGED = false;
     uint16_t l = strlen ( msg );
@@ -1583,7 +1619,7 @@ void execCommand ( AsyncWebSocketClient *client, char *msg )
     dbg_printf ( "WS[%d]: %s", client->id(), msg );
 }
 
-void client_status ( AsyncWebSocketClient *client )
+void ICACHE_FLASH_ATTR client_status ( AsyncWebSocketClient *client )
 {
     struct station_info *station = wifi_softap_get_station_info();
     uint8_t client_count = wifi_softap_get_station_num();
@@ -1591,7 +1627,7 @@ void client_status ( AsyncWebSocketClient *client )
     client->printf_P ( PSTR ( "[[b;yellow;]Connected Client(s)]: %d" ),
                        client_count
                      );
-    int i = 1;
+    int i = 0;
 
     while ( station != NULL )
     {
